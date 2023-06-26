@@ -1,0 +1,56 @@
+{
+  "name": "@kosmic/fs-router",
+  "version": "0.0.0",
+  "description": "my awesome project!",
+  "keywords": [],
+  "license": "MIT",
+  "author": "Spencer Snyder <sasnyde2@gmail.com> (https://spencersnyder.io/)",
+  "main": "dist/src/index",
+  "types": "dist/src/index",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm run clean && pnpm run compile",
+    "clean": "rimraf -rf ./dist",
+    "compile": "tsc -p tsconfig.build.json",
+    "dev": "pnpm build --watch",
+    "prepublishOnly": "pnpm run build",
+    "test": "pnpm build && ava"
+  },
+  "ava": {
+    "extensions": [
+      "ts"
+    ],
+    "files": [
+      "test/**/*.ts",
+      "!test/fixtures/**/*"
+    ],
+    "require": [
+      "ts-node/register"
+    ],
+    "verbose": true
+  },
+  "dependencies": {
+    "fast-glob": "^3.2.12",
+    "koa-compose": "^4.1.0",
+    "path-to-regexp": "^6.2.1"
+  },
+  "devDependencies": {
+    "@types/koa": "^2",
+    "@types/koa-compose": "^3.2.5",
+    "@types/node": "~18.15.3",
+    "ava": "^5.3.1",
+    "rimraf": "^4.4.0",
+    "ts-node": "^10.9.1",
+    "typescript": "~5.0.2",
+    "prettier-plugin-packagejson": "^2.4.3",
+    "npm-package-json-lint": "^6.4.0",
+    "npm-package-json-lint-config-default": "^5.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.2",
+    "@commitlint/cli": "^17.6.6",
+    "@commitlint/config-conventional": "^17.6.6",
+    "xo": "^0.54.2"
+  }
+}
