@@ -1,10 +1,10 @@
 import process from 'node:process';
 import path from 'node:path';
-import {type Middleware} from 'koa';
+import {type Middleware, type Context} from '@kosmic/koa';
 import fg from 'fast-glob';
-import type {MatchFunction, Match} from 'path-to-regexp';
+import type {MatchFunction} from 'path-to-regexp';
 import {match as createMatchFn} from 'path-to-regexp';
-import compose from 'koa-compose';
+import compose from '@kosmic/compose';
 
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'head' | 'options';
 
@@ -23,16 +23,18 @@ type RouteDefinition = {
   params?: unknown;
 };
 
-function createFsRouter(
+async function createFsRouter(
   routesDir = path.join(process.cwd(), 'routes'),
-): Middleware {
+): Promise<Middleware> {
   const middlewareByFileDir: {
     before: Record<string, Middleware>;
     after: Record<string, Middleware>;
   } = {before: {}, after: {}};
-  const routes: RouteDefinition[] = fg
-    .sync(`${routesDir}/**/*`)
-    .map((filePath) => {
+
+  const files = await fg(`${routesDir}/**/*`);
+
+  const routesPromises: Array<Promise<RouteDefinition>> = files.map(
+    async (filePath) => {
       let uriPath = filePath
         .replace(routesDir, '')
         .replace(/(\.js)|(\.ts)/, '')
@@ -47,8 +49,7 @@ function createFsRouter(
         );
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-      const module = require(filePath) as RouteModule;
+      const module = (await import(filePath)) as RouteModule;
 
       const middlewareBefore = module.useBefore && compose(module.useBefore);
 
@@ -68,15 +69,20 @@ function createFsRouter(
         middlewareBefore,
         middlewareAfter,
       };
-    })
-    .sort((a, b) => (b.module?.weight ?? 100) - (a.module.weight ?? 100));
+    },
+  );
 
-  // console.log('route', routes);
-  // console.log('middlewareByFileDir', middlewareByFileDir);
+  // eslint-disable-next-line unicorn/no-await-expression-member
+  const routes = (await Promise.all(routesPromises)).sort(
+    (a, b) => (b.module?.weight ?? 100) - (a.module.weight ?? 100),
+  );
 
-  return async function (ctx, next) {
+  console.log('route', routes);
+  console.log('middlewareByFileDir', middlewareByFileDir);
+
+  return async function (ctx: Context, next) {
     const matchedHandler = routes.find((route) => {
-      const [url] = ctx.url.split('?');
+      const [url] = ctx.originalUrl?.split('?') ?? [];
       const match = route.match(url);
 
       if (match) {
@@ -88,7 +94,7 @@ function createFsRouter(
 
     if (!matchedHandler) return next();
 
-    const fn = matchedHandler?.module?.[ctx.method.toLowerCase() as Method];
+    const fn = matchedHandler?.module?.[ctx.method?.toLowerCase() as Method];
 
     if (!fn || typeof fn !== 'function') return next();
 
@@ -97,7 +103,7 @@ function createFsRouter(
     if (matchedHandler) {
       for (const fileDir of Object.keys(middlewareByFileDir)) {
         if (path.dirname(matchedHandler.filePath).includes(fileDir)) {
-          middleware.push(middlewareByFileDir[fileDir]);
+          middleware.push(middlewareByFileDir.before[fileDir]);
         }
       }
     }
