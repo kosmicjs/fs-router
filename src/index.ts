@@ -1,10 +1,17 @@
 import process from 'node:process';
 import path from 'node:path';
-import {type Middleware, type Context} from '@kosmic/koa';
+import {type Middleware, type Context} from 'koa';
 import fg from 'fast-glob';
 import type {MatchFunction} from 'path-to-regexp';
 import {match as createMatchFn} from 'path-to-regexp';
 import compose from '@kosmic/compose';
+
+declare module 'koa' {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+  interface Request {
+    params?: Record<string, unknown>;
+  }
+}
 
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'head' | 'options';
 
@@ -17,10 +24,10 @@ type RouteModule = Partial<Record<Method, Middleware>> & {
 type RouteDefinition = {
   uriPath: string;
   filePath: string;
-  match: MatchFunction;
+  match: MatchFunction<Record<string, unknown>>;
   module: RouteModule;
   middleware?: Middleware;
-  params?: unknown;
+  params?: Record<string, unknown>;
 };
 
 async function createFsRouter(
@@ -38,7 +45,7 @@ async function createFsRouter(
       let uriPath = filePath
         .replace(routesDir, '')
         .replace(/(\.js)|(\.ts)/, '')
-        .replace(/\/index/g, '')
+        .replaceAll('/index', '')
         .replace(/\/*$/, '');
 
       if (uriPath === '') uriPath = '/';
@@ -64,7 +71,7 @@ async function createFsRouter(
       return {
         filePath,
         uriPath,
-        match: createMatchFn(uriPath),
+        match: createMatchFn<Record<string, unknown>>(uriPath),
         module,
         middlewareBefore,
         middlewareAfter,
@@ -112,10 +119,10 @@ async function createFsRouter(
       await compose(middleware)(ctx, next);
     }
 
-    ctx.state.params = matchedHandler?.params;
+    ctx.request.params = matchedHandler?.params;
 
     await fn(ctx, next);
   };
 }
 
-export default createFsRouter;
+export = createFsRouter;
