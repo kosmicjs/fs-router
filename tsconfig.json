@@ -1,4 +1,5 @@
 {
+  "extends": "./node_modules/@kosmic/types/tsconfig.kosmic",
   "compilerOptions": {
     "outDir": "./dist",
     "target": "ES2022",
